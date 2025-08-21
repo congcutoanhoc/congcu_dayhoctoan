@@ -1,0 +1,445 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Công cụ Toán học THPT – Bản PRO (CT 2018)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    :root{
+      --bg:#0f172a; --card:#111827ee; --muted:#94a3b8; --fg:#e5e7eb;
+      --accent:#22d3ee; --accent2:#a78bfa; --good:#34d399; --bad:#f87171;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b1023,#0f172a 40%,#0b1023);color:var(--fg);font:15px/1.6 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+    h1{font-size:26px;margin:0 0 8px}
+    h2{font-size:18px;margin:0 0 8px;color:var(--accent)}
+    .muted{color:var(--muted)}
+    .card{background:var(--card);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:18px;padding:18px;box-shadow:0 10px 30px #0007;margin-bottom:16px}
+    .nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+    .tab{border:1px solid #334155;background:#0b1224;color:var(--fg);padding:8px 12px;border-radius:14px;cursor:pointer}
+    .tab.active{background:linear-gradient(90deg,#111827,#0b1224);border-color:var(--accent);box-shadow:0 0 0 2px #0ea5b71a inset}
+    input,select,textarea,button{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #334155;background:#0b1224;color:var(--fg)}
+    button{cursor:pointer}
+    button.primary{background:linear-gradient(90deg,#0891b2,#6366f1);border:none}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .pill{display:inline-block;border:1px solid #334155;border-radius:999px;padding:3px 10px;margin:4px 6px 0 0;font-size:12px}
+    .stat{padding:8px 12px;border:1px solid #334155;border-radius:12px;background:#0b1224}
+    .ok{color:var(--good)}.bad{color:var(--bad)}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; background:#111827;border:1px solid #334155;border-radius:6px;padding:2px 6px}
+    #graph,#surveyPlot{width:100%;height:420px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🧮 Công cụ Toán học THPT – Bản PRO</h1>
+    <p class="muted">Bao gồm: Vẽ đồ thị, PT bậc hai, Đạo hàm, Tích phân, Số phức, Tổ hợp, <b>Hình học Oxy/Oxyz</b>, <b>Khảo sát hàm số</b>. Một file chạy trực tiếp trên trình duyệt.</p>
+    <div class="nav" id="nav"></div>
+    <div id="panels"></div>
+    <p class="muted" style="margin-top:12px">Mẹo: Dùng <span class="kbd">^</span> cho lũy thừa, <span class="kbd">pi</span>, <span class="kbd">e</span>. Các hàm: <span class="kbd">sin, cos, tan, asin, acos, atan, sqrt, abs, exp, ln (log), log10, pow</span>.</p>
+  </div>
+
+  <!-- Templates -->
+  <template id="tpl-plot">
+    <div class="card">
+      <h2>Vẽ đồ thị hàm số</h2>
+      <div class="grid3">
+        <input id="expr" value="sin(x)+x**2/8" />
+        <input id="xmin" type="number" step="any" value="-10" />
+        <input id="xmax" type="number" step="any" value="10" />
+      </div>
+      <div style="margin-top:10px" class="grid2">
+        <button id="draw" class="primary">Vẽ</button>
+        <button id="sample">Ví dụ ngẫu nhiên</button>
+      </div>
+      <div id="graph"></div>
+      <p id="perr" class="bad"></p>
+    </div>
+  </template>
+
+  <template id="tpl-quad">
+    <div class="card">
+      <h2>Giải phương trình bậc hai</h2>
+      <div class="grid3">
+        <div><label>a</label><input id="qa" type="number" value="1"/></div>
+        <div><label>b</label><input id="qb" type="number" value="-3"/></div>
+        <div><label>c</label><input id="qc" type="number" value="-4"/></div>
+      </div>
+      <div style="margin-top:10px"><button id="qsolve" class="primary">Giải</button></div>
+      <p id="qres"></p>
+    </div>
+  </template>
+
+  <template id="tpl-deriv">
+    <div class="card">
+      <h2>Đạo hàm (xấp xỉ trung tâm)</h2>
+      <div class="grid3">
+        <input id="df" value="x**3-2*x"/>
+        <div><label>tại x0</label><input id="dx0" type="number" value="1"/></div>
+        <div><label>h</label><input id="dh" type="number" value="1e-5" step="any"/></div>
+      </div>
+      <div style="margin-top:10px"><button id="dcalc" class="primary">Tính</button></div>
+      <p id="dout"></p>
+    </div>
+  </template>
+
+  <template id="tpl-int">
+    <div class="card">
+      <h2>Tích phân xác định (Simpson)</h2>
+      <div class="grid3">
+        <input id="if" value="x**2"/>
+        <div><label>a</label><input id="ia" type="number" value="0"/></div>
+        <div><label>b</label><input id="ib" type="number" value="1"/></div>
+      </div>
+      <div style="margin-top:10px"><button id="icalc" class="primary">Tính</button></div>
+      <p id="iout"></p>
+    </div>
+  </template>
+
+  <template id="tpl-complex">
+    <div class="card">
+      <h2>Số phức cơ bản</h2>
+      <div class="grid2">
+        <div><label>Phần thực</label><input id="zr" type="number" value="3"/></div>
+        <div><label>Phần ảo</label><input id="zi" type="number" value="4"/></div>
+      </div>
+      <div style="margin-top:10px"><button id="zcalc" class="primary">Tính |z|, arg</button></div>
+      <p id="zout"></p>
+    </div>
+  </template>
+
+  <template id="tpl-comb">
+    <div class="card">
+      <h2>Tổ hợp – C(n,k)</h2>
+      <div class="grid2">
+        <div><label>n</label><input id="cn" type="number" value="5"/></div>
+        <div><label>k</label><input id="ck" type="number" value="2"/></div>
+      </div>
+      <div style="margin-top:10px"><button id="ccalc" class="primary">Tính</button></div>
+      <p id="cout"></p>
+    </div>
+  </template>
+
+  <template id="tpl-oxy">
+    <div class="card">
+      <h2>Hình học giải tích Oxy</h2>
+      <div class="grid2">
+        <div class="stat">
+          <b>Đường thẳng qua 2 điểm</b>
+          <div class="grid2">
+            <input id="x1" type="number" value="1"/><input id="y1" type="number" value="2"/>
+          </div>
+          <div class="grid2">
+            <input id="x2" type="number" value="3"/><input id="y2" type="number" value="1"/>
+          </div>
+          <button id="line2p" class="primary" style="margin-top:8px">Tìm phương trình</button>
+          <p id="line2pOut"></p>
+        </div>
+        <div class="stat">
+          <b>Khoảng cách điểm–đường thẳng</b>
+          <div class="grid3">
+            <input id="px" type="number" value="2"/><input id="py" type="number" value="-1"/>
+            <input id="a" type="number" value="1"/><input id="b" type="number" value="-2"/><input id="c" type="number" value="3"/>
+          </div>
+          <small class="muted">Đường thẳng: ax + by + c = 0</small><br/>
+          <button id="distPl" class="primary" style="margin-top:8px">Tính</button>
+          <p id="distPlOut"></p>
+        </div>
+      </div>
+      <div class="grid2" style="margin-top:12px">
+        <div class="stat">
+          <b>Giao 2 đường thẳng</b>
+          <div class="grid3">
+            <input id="a1" type="number" value="1"/><input id="b1" type="number" value="1"/><input id="c1" type="number" value="-3"/>
+            <input id="a2" type="number" value="2"/><input id="b2" type="number" value="-1"/><input id="c2" type="number" value="-1"/>
+          </div>
+          <small class="muted">a₁x+b₁y+c₁=0 & a₂x+b₂y+c₂=0</small><br/>
+          <button id="interLL" class="primary" style="margin-top:8px">Tính</button>
+          <p id="interLLOut"></p>
+        </div>
+        <div class="stat">
+          <b>Đường tròn dạng tổng quát</b>
+          <div class="grid3">
+            <input id="D" type="number" value="-4"/><input id="E" type="number" value="6"/><input id="F" type="number" value="-12"/>
+          </div>
+          <small class="muted">x²+y² + Dx + Ey + F = 0</small><br/>
+          <button id="circle" class="primary" style="margin-top:8px">Tâm & bán kính</button>
+          <p id="circleOut"></p>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-oxyz">
+    <div class="card">
+      <h2>Hình học giải tích Oxyz</h2>
+      <div class="grid2">
+        <div class="stat">
+          <b>Khoảng cách điểm–mặt phẳng</b>
+          <div class="grid3">
+            <input id="px3" type="number" value="1"/><input id="py3" type="number" value="2"/><input id="pz3" type="number" value="-1"/>
+            <input id="A" type="number" value="1"/><input id="B" type="number" value="2"/><input id="C" type="number" value="-2"/><input id="Dpl" type="number" value="3"/>
+          </div>
+          <small class="muted">Mặt phẳng: Ax + By + Cz + D = 0</small><br/>
+          <button id="distPlane" class="primary" style="margin-top:8px">Tính</button>
+          <p id="distPlaneOut"></p>
+        </div>
+        <div class="stat">
+          <b>Mặt phẳng qua 3 điểm</b>
+          <div class="grid3">
+            <input id="xA" type="number" value="0"/><input id="yA" type="number" value="0"/><input id="zA" type="number" value="0"/>
+            <input id="xB" type="number" value="1"/><input id="yB" type="number" value="2"/><input id="zB" type="number" value="1"/>
+            <input id="xC" type="number" value="2"/><input id="yC" type="number" value="-1"/><input id="zC" type="number" value="3"/>
+          </div>
+          <button id="plane3p" class="primary" style="margin-top:8px">Tìm phương trình</button>
+          <p id="plane3pOut"></p>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-survey">
+    <div class="card">
+      <h2>Khảo sát hàm số</h2>
+      <div class="grid2">
+        <input id="sf" value="x**3-3*x" />
+        <div class="grid3">
+          <div><label>a</label><input id="sa" type="number" value="-4"/></div>
+          <div><label>b</label><input id="sb" type="number" value="4"/></div>
+          <div><label>x₀ (tiếp tuyến)</label><input id="sx0" type="number" value="1"/></div>
+        </div>
+      </div>
+      <div style="margin-top:10px" class="grid2">
+        <button id="srun" class="primary">Phân tích</button>
+        <button id="splot">Vẽ</button>
+      </div>
+      <div id="surveyOut" style="margin-top:8px"></div>
+      <div id="surveyPlot"></div>
+    </div>
+  </template>
+
+  <script>
+    // ===== Utilities =====
+    const TABS=[
+      {id:'plot', name:'Vẽ đồ thị', tpl:'#tpl-plot'},
+      {id:'quad', name:'PT bậc hai', tpl:'#tpl-quad'},
+      {id:'deriv', name:'Đạo hàm', tpl:'#tpl-deriv'},
+      {id:'int', name:'Tích phân', tpl:'#tpl-int'},
+      {id:'complex', name:'Số phức', tpl:'#tpl-complex'},
+      {id:'comb', name:'Tổ hợp', tpl:'#tpl-comb'},
+      {id:'oxy', name:'Hình học Oxy', tpl:'#tpl-oxy'},
+      {id:'oxyz', name:'Hình học Oxyz', tpl:'#tpl-oxyz'},
+      {id:'survey', name:'Khảo sát hàm', tpl:'#tpl-survey'},
+    ];
+    const nav=document.getElementById('nav');
+    const panels=document.getElementById('panels');
+    function renderTabs(active){
+      nav.innerHTML=''; panels.innerHTML='';
+      TABS.forEach(t=>{
+        const b=document.createElement('button'); b.className='tab'+(t.id===active?' active':''); b.textContent=t.name;
+        b.onclick=()=>renderTabs(t.id); nav.appendChild(b);
+        if(t.id===active){ panels.appendChild(document.querySelector(t.tpl).content.cloneNode(true)); initPanel(t.id); }
+      });
+      history.replaceState(null,'','#'+active);
+    }
+    renderTabs(location.hash.replace('#','')||'plot');
+
+    function makeF(expr){
+      if(!expr) throw new Error('Biểu thức rỗng');
+      let s=expr.replace(/\^/g,'**').replace(/\bpi\b/gi,'Math.PI').replace(/\be\b/gi,'Math.E')
+        .replace(/\bln\(/gi,'Math.log(').replace(/\blog10\(/gi,'Math.log10(');
+      const f=new Function('x','with (Math) { return '+s+' }');
+      // test compile
+      f(0);
+      return f;
+    }
+
+    // ===== Plot =====
+    function initPlot(){
+      const expr=document.getElementById('expr');
+      const xmin=document.getElementById('xmin');
+      const xmax=document.getElementById('xmax');
+      const perr=document.getElementById('perr');
+      function draw(){
+        perr.textContent='';
+        try{
+          const f=makeF(expr.value);
+          const a=parseFloat(xmin.value), b=parseFloat(xmax.value);
+          const X=[],Y=[];
+          for(let x=a; x<=b; x+=(b-a)/800){ let y=f(x); if(Number.isFinite(y)){ X.push(x); Y.push(y);} else {X.push(x); Y.push(null);} }
+          Plotly.newPlot('graph',[{x:X,y:Y,mode:'lines',type:'scatter'}],{margin:{l:40,r:10,t:10,b:40}});
+        }catch(e){ perr.textContent='Lỗi: '+e.message; }
+      }
+      document.getElementById('draw').onclick=draw;
+      document.getElementById('sample').onclick=()=>{ const arr=['sin(x)','cos(x)+x/5','x**3-3*x','abs(x)+sin(3*x)/3','exp(-x**2)','sqrt(abs(x))','tan(x/2)','sin(x)*cos(2*x)']; expr.value=arr[Math.floor(Math.random()*arr.length)]; draw(); };
+      draw();
+    }
+
+    // ===== Quadratic =====
+    function initQuad(){
+      const a=qa, b=qb, c=qc, out=qres;
+      qsolve.onclick=()=>{
+        const A=+a.value,B=+b.value,C=+c.value;
+        if(A===0){ out.innerHTML='<span class="bad">a phải khác 0</span>'; return; }
+        const D=B*B-4*A*C;
+        if(D>0){ const x1=(-B+Math.sqrt(D))/(2*A), x2=(-B-Math.sqrt(D))/(2*A); out.innerHTML=`Δ=${D}. x₁=${x1}, x₂=${x2}`; }
+        else if(D===0){ const x=-B/(2*A); out.innerHTML=`Δ=0. Nghiệm kép x=${x}`; }
+        else{ const re=-B/(2*A), im=Math.sqrt(-D)/(2*A); out.innerHTML=`Δ<0. x₁=${re}+${im}i, x₂=${re}-${im}i`; }
+      };
+    }
+
+    // ===== Derivative =====
+    function initDeriv(){
+      dcalc.onclick=()=>{
+        try{
+          const f=makeF(df.value); const x0=+dx0.value; const h=+dh.value||1e-5;
+          const d=(f(x0+h)-f(x0-h))/(2*h);
+          dout.textContent=`f'(${x0}) ≈ ${d}`;
+        }catch(e){ dout.textContent='Lỗi: '+e.message; }
+      };
+    }
+
+    // ===== Integral =====
+    function initInt(){
+      icalc.onclick=()=>{
+        try{
+          const f=makeF(if.value); const a=+ia.value, b=+ib.value;
+          let n=1000; if(n%2) n++; const h=(b-a)/n;
+          let sum=f(a)+f(b);
+          for(let i=1;i<n;i++) sum+=(i%2?4:2)*f(a+i*h);
+          iout.textContent=`≈ ${sum*h/3}`;
+        }catch(e){ iout.textContent='Lỗi: '+e.message; }
+      };
+    }
+
+    // ===== Complex =====
+    function initComplex(){
+      zcalc.onclick=()=>{
+        const re=+zr.value, im=+zi.value; const mod=Math.hypot(re,im); const arg=Math.atan2(im,re);
+        zout.textContent=`|z|=${mod.toFixed(3)}, arg(z)=${arg.toFixed(3)} rad`;
+      };
+    }
+
+    // ===== Combinatorics =====
+    function initComb(){
+      ccalc.onclick=()=>{
+        const n=+cn.value, k=+ck.value;
+        if(k<0||k>n){ cout.textContent='0'; return; }
+        // stable multiplicative formula
+        let res=1; for(let i=1;i<=k;i++){ res=res*(n-k+i)/i; } cout.textContent=`C(${n},${k}) = ${Math.round(res)}`;
+      };
+    }
+
+    // ===== Analytic Geometry Oxy =====
+    function initOxy(){
+      line2p.onclick=()=>{
+        const X1=+x1.value,Y1=+y1.value,X2=+x2.value,Y2=+y2.value;
+        if(X1===X2 && Y1===Y2){ line2pOut.textContent='Hai điểm trùng nhau'; return; }
+        const A=Y1-Y2, B=X2-X1, C=-(A*X1+B*Y1);
+        line2pOut.textContent=`${A}x + ${B}y + ${C} = 0`;
+      };
+      distPl.onclick=()=>{
+        const X=+px.value,Y=+py.value, A1=+a.value,B1=+b.value,C1=+c.value;
+        const d=Math.abs(A1*X+B1*Y+C1)/Math.hypot(A1,B1);
+        distPlOut.textContent=`d = ${d}`;
+      };
+      interLL.onclick=()=>{
+        const A1=+a1.value,B1=+b1.value,C1=+c1.value, A2=+a2.value,B2=+b2.value,C2=+c2.value;
+        const D=A1*B2-A2*B1, Dx=(-C1)*B2-(-C2)*B1, Dy=A1*(-C2)-A2*(-C1);
+        if(Math.abs(D)<1e-12){ interLLOut.textContent='Hai đường song song/ trùng nhau'; return; }
+        interLLOut.textContent=`Giao điểm: (x,y)=(${Dx/D}, ${Dy/D})`;
+      };
+      circle.onclick=()=>{
+        const Dv=+D.value, Ev=+E.value, Fv=+F.value;
+        const xc=-Dv/2, yc=-Ev/2, r2=xc*xc+yc*yc-Fv;
+        if(r2<0){ circleOut.textContent='Không phải đường tròn (r²<0)'; return; }
+        circleOut.textContent=`Tâm I(${xc}, ${yc}), bán kính r=${Math.sqrt(r2)}`;
+      };
+    }
+
+    // ===== Analytic Geometry Oxyz =====
+    function initOxyz(){
+      distPlane.onclick=()=>{
+        const X=+px3.value,Y=+py3.value,Z=+pz3.value, A1=+A.value,B1=+B.value,C1=+C.value,D1=+Dpl.value;
+        const d=Math.abs(A1*X+B1*Y+C1*Z+D1)/Math.hypot(A1,B1,C1);
+        distPlaneOut.textContent=`d = ${d}`;
+      };
+      plane3p.onclick=()=>{
+        const A0=[+xA.value,+yA.value,+zA.value], B0=[+xB.value,+yB.value,+zB.value], C0=[+xC.value,+yC.value,+zC.value];
+        const AB=[B0[0]-A0[0],B0[1]-A0[1],B0[2]-A0[2]];
+        const AC=[C0[0]-A0[0],C0[1]-A0[1],C0[2]-A0[2]];
+        const n=[ AB[1]*AC[2]-AB[2]*AC[1], AB[2]*AC[0]-AB[0]*AC[2], AB[0]*AC[1]-AB[1]*AC[0] ];
+        const A1=n[0],B1=n[1],C1=n[2],D1=-(A1*A0[0]+B1*A0[1]+C1*A0[2]);
+        plane3pOut.textContent=`${A1}x + ${B1}y + ${C1}z + ${D1} = 0`;
+      };
+    }
+
+    // ===== Survey (function analysis) =====
+    function initSurvey(){
+      function derivativeAt(f,x,h=1e-5){ return (f(x+h)-f(x-h))/(2*h); }
+      function secondAt(f,x,h=1e-4){ return (f(x+h)-2*f(x)+f(x-h))/(h*h); }
+      srun.onclick=()=>{
+        try{
+          const f=makeF(sf.value); const a=+sa.value, b=+sb.value;
+          const N=600, xs=[], ys=[], ds=[];
+          for(let i=0;i<=N;i++){ const x=a+(b-a)*i/N; xs.push(x); ys.push(f(x)); ds.push(derivativeAt(f,x)); }
+          // critical points: sign changes of derivative or |d| small
+          const crit=[];
+          for(let i=1;i<=N;i++){
+            if(ds[i]===0 || ds[i-1]===0 || ds[i]*ds[i-1]<0){
+              // refine by local search around interval [xi-1, xi]
+              const xL=xs[i-1], xR=xs[i];
+              let xM=(xL+xR)/2;
+              for(let k=0;k<20;k++){
+                const d=derivativeAt(f,xM);
+                if(d===0) break;
+                if(d*derivativeAt(f,xL)<0) xR=xM; else xL=xM;
+                xM=(xL+xR)/2;
+              }
+              const yM=f(xM), s2=secondAt(f,xM);
+              const type = s2>0?'cực tiểu':(s2<0?'cực đại':'điểm uốn/khó phân loại');
+              crit.push({x:xM,y:yM,type});
+            }
+          }
+          // monotonic intervals by sign of derivative
+          let intervals=[], start=a, sign=Math.sign(ds[0]||0);
+          for(let i=1;i<=N;i++){
+            const s=Math.sign(ds[i]||0);
+            if(s!==sign){ intervals.push({from:start, to:xs[i], type: sign>0?'tăng':'giảm'}); start=xs[i]; sign=s; }
+          }
+          intervals.push({from:start, to:b, type: sign>0?'tăng':'giảm'});
+          // Render text
+          let html='<div class="grid2">';
+          html+=`<div class="stat"><b>Miền khảo sát:</b> [${a}, ${b}]</div>`;
+          html+=`<div class="stat"><b>Số điểm nghi ngờ cực trị:</b> ${crit.length}</div>`;
+          html+='</div><div class="stat" style="margin-top:8px"><b>Các điểm cực trị (xấp xỉ):</b><ul>';
+          crit.forEach(c=> html+=`<li>${c.type} tại x≈${c.x.toFixed(5)}, f(x)≈${c.y.toFixed(5)}</li>`);
+          html+='</ul></div><div class="stat" style="margin-top:8px"><b>Khoảng đơn điệu (ước lượng):</b><ul>';
+          intervals.forEach(iv=> html+=`<li>[${iv.from.toFixed(3)}, ${iv.to.toFixed(3)}]: ${iv.type}</li>`);
+          html+='</ul></div>';
+          surveyOut.innerHTML=html;
+        }catch(e){ surveyOut.textContent='Lỗi: '+e.message; }
+      };
+      splot.onclick=()=>{
+        try{
+          const f=makeF(sf.value); const a=+sa.value, b=+sb.value, x0=+sx0.value;
+          const X=[],Y=[]; for(let x=a;x<=b;x+=(b-a)/800){ X.push(x); Y.push(f(x)); }
+          const d=(f(x0+1e-5)-f(x0-1e-5))/(2e-5), y0=f(x0);
+          const tangentX=[a,b]; const tangentY=[ y0 + d*(a-x0), y0 + d*(b-x0) ];
+          Plotly.newPlot('surveyPlot',[
+            {x:X,y:Y,mode:'lines',name:'f(x)'},
+            {x:tangentX,y:tangentY,mode:'lines',name:'Tiếp tuyến tại x₀'}
+          ],{margin:{l:40,r:10,t:10,b:40}});
+        }catch(e){ surveyOut.textContent='Lỗi: '+e.message; }
+      };
+    }
+
+    function initPanel(id){
+      ({plot:initPlot, quad:initQuad, deriv:initDeriv, int:initInt, complex:initComplex, comb:initComb, oxy:initOxy, oxyz:initOxyz, survey:initSurvey}[id])();
+    }
+  </script>
+</body>
+</html>
